@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Investimentos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #219150;
+        }
+        .resultado {
+            margin-top: 20px;
+            background-color: #ecf9ec;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #b2e0b2;
+        }
+        .resultado strong {
+            color: #2c7a2c;
+        }
+        #valorInvestidoInfo {
+            margin-top: 10px;
+            padding: 10px;
+            background: #eafbe8;
+            border: 1px solid #b8e8b1;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            color: #1e7c1e;
+        }
+        canvas {
+            margin-top: 30px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Simulador de Investimentos</h1>
+    <div class="container">
+        <label for="salario">Salário (R$):</label>
+        <input type="number" id="salario" step="0.01">
+
+        <label for="porcentagem">Porcentagem para Investir (%):</label>
+        <input type="number" id="porcentagem" step="0.01">
+
+        <div id="valorInvestidoInfo"></div>
+
+        <label for="valorCota">Valor da Cota (R$):</label>
+        <input type="number" id="valorCota" step="0.01">
+
+        <label for="rendimentoMensal">Rendimento por Cota (R$):</label>
+        <input type="number" id="rendimentoMensal" step="0.01">
+
+        <label for="anos">Duração (Anos):</label>
+        <input type="number" id="anos">
+
+        <button onclick="calcularInvestimento()">Calcular</button>
+
+        <div class="resultado" id="resultado"></div>
+
+        <canvas id="grafico"></canvas>
+    </div>
+
+    <script>
+        document.getElementById("porcentagem").addEventListener("input", atualizarValorInvestido);
+        document.getElementById("salario").addEventListener("input", atualizarValorInvestido);
+
+        function atualizarValorInvestido() {
+            const salario = parseFloat(document.getElementById("salario").value) || 0;
+            const porcentagem = parseFloat(document.getElementById("porcentagem").value) || 0;
+            const valorInvestido = salario * (porcentagem / 100);
+            document.getElementById("valorInvestidoInfo").innerText = "Valor a investir por mês: " + valorInvestido.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        }
+
+        function calcularInvestimento() {
+            const salario = parseFloat(document.getElementById("salario").value);
+            const porcentagem = parseFloat(document.getElementById("porcentagem").value);
+            const valorCota = parseFloat(document.getElementById("valorCota").value);
+            const rendimentoMensal = parseFloat(document.getElementById("rendimentoMensal").value);
+            const anos = parseInt(document.getElementById("anos").value);
+
+            const investimentoMensal = salario * (porcentagem / 100);
+            let cotas = 0;
+            let sobra = 0;
+            let meses = anos * 12;
+            let historico = [];
+
+            for (let i = 1; i <= meses; i++) {
+                let totalInvestir = investimentoMensal + sobra;
+                let novasCotas = Math.floor(totalInvestir / valorCota);
+                sobra = totalInvestir - (novasCotas * valorCota);
+                cotas += novasCotas;
+
+                let rendimento = cotas * rendimentoMensal;
+                sobra += rendimento;
+
+                let cotasAdicionais = Math.floor(sobra / valorCota);
+                cotas += cotasAdicionais;
+                sobra -= cotasAdicionais * valorCota;
+
+                historico.push(cotas);
+            }
+
+            const valorPatrimonial = cotas * valorCota;
+            const rendaPassivaMensal = cotas * rendimentoMensal;
+
+            document.getElementById("resultado").innerHTML = `
+                <strong>Total de Cotas:</strong> ${cotas.toLocaleString('pt-BR')}<br>
+                <strong>Valor Patrimonial:</strong> ${valorPatrimonial.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}<br>
+                <strong>Renda Passiva Mensal:</strong> ${rendaPassivaMensal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}<br>
+                <strong>Sobra Acumulada:</strong> ${sobra.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}<br>
+                <p style="font-size: 13px; margin-top: 10px; color: #777;">Obs.: Todo o rendimento e toda a sobra foram reinvestidos automaticamente no cálculo.</p>
+            `;
+
+            gerarGrafico(historico);
+        }
+
+        function gerarGrafico(historico) {
+            const ctx = document.getElementById('grafico').getContext('2d');
+            if (window.graficoInvestimento) {
+                window.graficoInvestimento.destroy();
+            }
+            window.graficoInvestimento = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: historico.map((_, i) => i + 1),
+                    datasets: [{
+                        label: 'Cotas Acumuladas',
+                        data: historico,
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.2)',
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Meses' } },
+                        y: { title: { display: true, text: 'Total de Cotas' } }
+                    }
+                }
+            });
+        }
+
+        // Permitir calcular com Enter
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Enter") {
+                calcularInvestimento();
+            }
+        });
+    </script>
+</body>
+</html>
